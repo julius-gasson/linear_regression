@@ -53,7 +53,10 @@ def preprocess(infile):
             if sublist is not None and len(sublist[0]) > time_step:
                 final_data[time_step, idx] = sublist[0][time_step, 0]  # Pressure
                 final_data[time_step, idx + num_ids] = sublist[0][time_step, 1]  # Temperature
-
+    avg_pressures = np.nanmean(final_data[:, :num_ids], axis=0)
+    for i in range(len(avg_pressures)):
+        print(f"ID: {i+1}, Average Pressure: {avg_pressures[i]}")
+    print(avg_pressures)
     return final_data
 
 def main():
