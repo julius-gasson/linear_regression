@@ -6,7 +6,7 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import argparse
 
 NUM_SENSORS = 27
 
@@ -70,10 +70,15 @@ def visualise(all_weights):
     plt.show()
 
 def main():
+    parser = argparse.ArgumentParser(description="Linear regression for pressure sensors.")
+    parser.add_argument("infile", type=str, help="The CSV file containing pressure data.")
+    parser.add_argument("--log", "-l", action="store_true", default=False, help="Log the discovered parameters for each ID.")
+    parser.add_argument("--visualise", "-v", action="store_true", default=False, help="Visualise the weights in a heatmap.")
+    args = parser.parse_args()
     np.set_printoptions(suppress=True, formatter={"float_kind": "{:0.8f}".format})
-    infile = sys.argv[1]
-    weights, _ = get_weights(infile, log=True)
-    visualise(weights)
+    weights, _ = get_weights(args.infile, log=args.log)
+    if args.visualise:
+        visualise(weights)
 
 if __name__ == "__main__":
     main()

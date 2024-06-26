@@ -13,7 +13,7 @@ class AnomalyDetector(Monitor):
     last_id: int
     def __init__(self, weights, biases, max_residual, num_sensors):
         super().__init__()
-        self.weights = np.nan_to_num(weights.to_numpy())
+        self.weights = np.nan_to_num(weights.to_numpy()).T
         self.biases = biases.to_numpy().T.flatten()
         self.max_residual = max_residual
         self.num_sensors = num_sensors
@@ -40,9 +40,10 @@ class AnomalyDetector(Monitor):
                 self.last_id = pdm_id
                 predictions = np.matmul(self.values, self.weights)
                 predictions += self.biases
-                if np.any(np.abs(predictions - self.values) > self.max_residual):
-                    error_msg = f"Unexpected value! Predicted: {predictions}, but actual values were: {self.values} \
-                    \n    Differences were: {predictions - self.values}, max allowed difference is: {self.max_residual}"
+                residuals = np.abs(predictions - self.values)
+                if np.any(residuals > self.max_residual):
+                    error_msg = f"Unexpected value! \n\nPredicted: {predictions} \n\nActual values:\n\n{self.values} \
+                    \n\nDifferences were: {residuals}\n\nMax allowed difference is: {self.max_residual}"
                     return error(error_msg)
 
 def main():
@@ -54,6 +55,7 @@ def main():
     parser.add_argument("--biases", "-b", type=str, default="parameters/biases.csv", help="The CSV file containing the biases.")
     args = parser.parse_args()
 
+    np.set_printoptions(suppress=True, formatter={"float_kind": "{:0.5f}".format})
     weights = pd.read_csv(args.weights, header=None)
     biases = pd.read_csv(args.biases, header=None)
     monitor = AnomalyDetector(weights=weights, biases=biases, max_residual=args.max_residual, num_sensors=args.num_sensors)
