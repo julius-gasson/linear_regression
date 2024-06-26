@@ -14,7 +14,7 @@ class AnomalyDetector(Monitor):
     def __init__(self, weights, biases, max_residual, num_sensors):
         super().__init__()
         self.weights = np.nan_to_num(weights.to_numpy())
-        self.biases = biases.to_numpy()
+        self.biases = biases.to_numpy().T.flatten()
         self.max_residual = max_residual
         self.num_sensors = num_sensors
         self.values = np.empty(self.num_sensors)
@@ -31,15 +31,19 @@ class AnomalyDetector(Monitor):
                 if (pdm_id - self.last_id) % self.num_sensors != 1:
                     self.last_id = pdm_id
                     return error(f"Missing data for at least one sensor. Cannot calculate anomaly statistics.")
+        match event:
             case {"ID": pdm_id, "Valore": value, 'Tipo Grandezza': "Pressione a valle"}:
+                self.last_id = pdm_id
                 self.values[pdm_id-1] = value
+        match event:
             case {"ID": self.num_sensors, "Valore": _, 'Tipo Grandezza': "Pressione a valle"}:
                 self.last_id = pdm_id
-                predictions = np.matmul(self.weights, self.values) + self.biases
-                print("Predictions", predictions)
-                print("Values", self.values)
+                predictions = np.matmul(self.values, self.weights)
+                predictions += self.biases
                 if np.any(np.abs(predictions - self.values) > self.max_residual):
-                    return error(f"Unexpected value! {self.values} -> {predictions}")
+                    error_msg = f"Unexpected value! Predicted: {predictions}, but actual values were: {self.values} \
+                    \n    Differences were: {predictions - self.values}, max allowed difference is: {self.max_residual}"
+                    return error(error_msg)
 
 def main():
     parser = argparse.ArgumentParser(description="Pressure anomaly detector.")
