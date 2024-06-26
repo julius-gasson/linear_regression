@@ -18,9 +18,9 @@ def get_weights(infile, log=False, pressure=True, temperature=False, num_sensors
     elif not temperature:
         full_data = full_data[:, :num_sensors]
     for i in range(num_sensors):
-        X = np.delete(full_data[:, :num_sensors], i, axis=1)
+        X = np.delete(full_data, i, axis=1)
         Y = full_data[:, i].astype(float)
-
+        print(X.shape, Y.shape)
         x_train, x_test, y_train, y_test = train_test_split(
             X, Y, test_size=0.2, random_state=42
         )

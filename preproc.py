@@ -5,15 +5,12 @@ import argparse
 def preprocess(infile, log=False, length=-1):
     # Load data
     df = pd.read_csv(infile, delimiter=';', decimal='.')
-    
+    if length == 1 or length == 2:
+        df = df.tail(length * 27)
+        df["ID"] = df["ID"].str.replace("PDM", "").astype(int)
+        return df.to_numpy()
     # Normalize column names and convert IDs
     df["ID"] = df["ID"].str.replace("PDM", "").astype(int)
-    
-    # Normalize measurement type names
-    df['Tipo Grandezza'] = df['Tipo Grandezza'].replace({
-        'Pressione a valle': 'Pressure',
-        'Temperatura Ambiente': 'Temperature'
-    })
 
     # Convert datetime fields
     df['Data Campionamento'] = pd.to_datetime(df['Data Campionamento'], dayfirst=True)
@@ -38,7 +35,7 @@ def preprocess(infile, log=False, length=-1):
             # Ensure each ID has a dedicated list
             if data_by_id[id_index - 1] is None:
                 data_by_id[id_index - 1] = []
-            data_by_id[id_index - 1].append(group[['Pressure', 'Temperature']].to_numpy())
+            data_by_id[id_index - 1].append(group[['Pressione a valle', 'Temperatura Ambiente']].to_numpy())
 
     # Determine the maximum number of timestamps
     max_length = max(len(data) for sublist in data_by_id for data in sublist if sublist is not None)
@@ -57,7 +54,7 @@ def preprocess(infile, log=False, length=-1):
         for i in range(len(avg_pressures)):
             print(f"ID: {i+1}, Average Pressure: {avg_pressures[i]}")
         print(avg_pressures)
-    if length != -1:
+    if length > 2:
         df = df.tail(length * 27)
     return final_data
 
