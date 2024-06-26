@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-import sys
+import argparse
 
-def preprocess(infile):
+def preprocess(infile, log=False, length=-1):
     # Load data
     df = pd.read_csv(infile, delimiter=';', decimal='.')
     
@@ -24,10 +24,9 @@ def preprocess(infile):
                               columns='Tipo Grandezza',
                               values='Valore',
                               aggfunc='first').reset_index()
-
-    # Sort data and reset index for consistency
     df_pivot.sort_values(by=['Data Campionamento', 'ORA Campionamento', 'ID'], inplace=True)
     df_pivot.reset_index(drop=True, inplace=True)
+
 
     # Prepare data structure to collect entries per ID
     num_ids = df['ID'].max()
@@ -54,14 +53,20 @@ def preprocess(infile):
                 final_data[time_step, idx] = sublist[0][time_step, 0]  # Pressure
                 final_data[time_step, idx + num_ids] = sublist[0][time_step, 1]  # Temperature
     avg_pressures = np.nanmean(final_data[:, :num_ids], axis=0)
-    for i in range(len(avg_pressures)):
-        print(f"ID: {i+1}, Average Pressure: {avg_pressures[i]}")
-    print(avg_pressures)
+    if log:
+        for i in range(len(avg_pressures)):
+            print(f"ID: {i+1}, Average Pressure: {avg_pressures[i]}")
+        print(avg_pressures)
+    if length != -1:
+        df = df.tail(length * 27)
     return final_data
 
 def main():
-    infile = sys.argv[1]
-    arr = preprocess(infile)
+    parser = argparse.ArgumentParser(description="Process some integers.")
+    parser.add_argument("infile", type=str, help="The CSV file containing pressure data.")
+    args = parser.parse_args()
+
+    arr = preprocess(args.infile, log=True)
     print("Array shape:", arr.shape)
 
 if __name__ == "__main__":
