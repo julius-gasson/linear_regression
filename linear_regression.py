@@ -1,58 +1,35 @@
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import root_mean_squared_error
+from sklearn.linear_model import LassoCV, LinearRegression
+from statsmodels.formula.api import ols
+from sklearn.metrics import mean_squared_error
+from numpy.linalg import inv
 from preproc import preprocess
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
+import pandas as pd
 
 
 def get_weights(infile, log=False, pressure=True, temperature=False, num_sensors=27, length=-1):
-    all_weights = np.empty((num_sensors, num_sensors))
-    all_biases = np.empty(num_sensors)
-    errors = np.empty(num_sensors)
+    batch_size = num_sensors * 2
+    all_weights = np.empty((batch_size, batch_size))
+    all_biases = np.empty(batch_size)
+    stud_res = []
     full_data = preprocess(infile, length=length)
-    if not pressure:
-        full_data = full_data[:, num_sensors:]
-    elif not temperature:
-        full_data = full_data[:, :num_sensors]
-    for i in range(num_sensors):
+    for i in range(batch_size):
+        print(f"Evaluation for Sensor {i+1}")
         X = np.delete(full_data, i, axis=1)
         Y = full_data[:, i].astype(float)
-        print(X.shape, Y.shape)
-        x_train, x_test, y_train, y_test = train_test_split(
-            X, Y, test_size=0.2, random_state=42
-        )
-        model = LinearRegression()
-        model.fit(x_train, y_train)
-        predictions = model.predict(x_test)
-        rmse = root_mean_squared_error(y_test, predictions)
-        weights = model.coef_
-        bias = model.intercept_
-        for j in range(num_sensors):
-            if j < i:
-                all_weights[i, j] = weights[j]
-            elif j > i:
-                all_weights[i, j] = weights[j - 1]
-            else:
-                all_weights[i, j] = np.nan
-        all_biases[i] = bias
-        if log:
-            print(f"i = {i}")
-            print("X_TRAIN_AVG:", np.mean(x_train))
-            print("Y_TRAIN_AVG:", np.mean(y_train))
-            print("Root Mean Squared Error:", rmse)
-            print("Weights:", weights)
-            print("Bias:", bias)
-    np.savetxt("parameters/weights.csv", all_weights, delimiter=",")
-    np.savetxt("parameters/biases.csv", all_biases, delimiter=",")
-    if log:
-        print("Average RMSE:", np.mean(errors))
+        data = pd.DataFrame({"X": X, "Y": Y})
+        model = ols("X ~ Y", data=data).fit()
+        stud_res = model.outlier_test()
+    stud_res = np.array(stud_res)
+    np.save("studentised_residuals.npy", stud_res)
     return all_weights, all_biases
 
 
-def visualise(all_weights, num_sensors=27):
+def visualise(all_weights, num_sensors=27, pressure=True):
     plt.figure(figsize=(14, 10))
     cmap = sns.color_palette("coolwarm", as_cmap=True)
     cmap.set_bad(color="grey")
@@ -71,8 +48,11 @@ def visualise(all_weights, num_sensors=27):
     plt.title("Heatmap of Linear Regression Weights")
     plt.xlabel("Contributing Sensors")
     plt.ylabel("Affected Sensors")
-    plt.show()
-
+    if pressure:
+        plt.savefig("pressure_heatmap.png")
+    else:
+        plt.savefig("temperature_heatmap.png")
+    plt.close()
 
 def main():
     parser = argparse.ArgumentParser(
@@ -133,7 +113,7 @@ def main():
         length=args.length,
     )
     if args.visualise:
-        visualise(weights, num_sensors=args.num_sensors)
+        visualise(weights, num_sensors=args.num_sensors, pressure=arg.s)
 
 
 if __name__ == "__main__":
