@@ -4,3 +4,4 @@ archive/*
 .venv/*
 .a
 results.txt
+images/*
