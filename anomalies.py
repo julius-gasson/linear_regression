@@ -59,6 +59,7 @@ def choose_targets(
                 ground_truth[idx, sensor] = 1
         else:
             ground_truth[target_indices[0]] = 1
+    print("GT shape:", ground_truth.shape)
     return target_indices, ground_truth.astype(int)
 
 
@@ -70,7 +71,6 @@ def add_anomalies(
     pressure_step_size=0.005,
     temp_step_size=0.5,
     scale_factor=1.05,
-    debug=False,
     daily=True,
     all_sensors=False,
 ):
@@ -81,7 +81,6 @@ def add_anomalies(
         daily=daily,
         all_sensors=all_sensors,
     )
-    clean_sample = dataset[target_indices[:3], :1].flatten()
     row_indices = target_indices[0, :]
     col_indices = target_indices[1, :]
     num_sensors = dataset.shape[1] / 2
@@ -89,25 +88,23 @@ def add_anomalies(
     if anomaly_type == "step":
         for i, row_index in enumerate(row_indices):
             col_index = col_indices[i]
-            if col_index < num_sensors:
-                dataset[row_index, col_index] += pressure_step_size
-            else:
-                dataset[row_index, col_index] += temp_step_size
+            try:
+                if col_index < num_sensors:
+                    dataset[row_index, col_index] += pressure_step_size
+                else:
+                    dataset[row_index, col_index] += temp_step_size
+            except IndexError:
+                print("Target row indices: ", row_indices)
+                sys.exit("Index out of bounds")
     elif anomaly_type == "ramp":
         dataset[row_indices, col_indices] *= scale_factor
     else:
         sys.exit(f"Invalid anomaly type: {anomaly_type}")
-    if debug:
-        new_sample = dataset[target_indices[:3], :1].flatten()
-        print(f"Sample was {clean_sample},\nis now {new_sample}")
     np.set_printoptions(threshold = np.inf)
-    gt_indices = np.arange(0, np.size(ground_truth, 0), 96)
+    gt_indices = np.arange(0, np.size(ground_truth, 0) - 96, 96)
     ground_truth = ground_truth[gt_indices, :]
     indices = np.where(ground_truth == 1)
-    print("Anomalies at:")
-    for i, j in zip(indices[0], indices[1]):
-        print(f"({i}, {j})")
-    return dataset, ground_truth
+    return dataset, ground_truth, indices
 
 
 def main():
